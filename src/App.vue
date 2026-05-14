@@ -23,24 +23,54 @@
       </div>
 
       <div
-          class="mx-auto w-fit bg-slate-950/60 border border-slate-700 rounded-xl p-3 shadow-lg shadow-black/30"
+        class="mx-auto w-fit bg-slate-950/60 border border-slate-700 rounded-xl p-3 shadow-lg shadow-black/30"
       >
-        <div
-          class="rounded-lg overflow-hidden"
-          :style="{ display: 'grid', gridTemplateColumns: `repeat(${cols}, ${cellPx}px)` }"
-        >
+        <div class="relative rounded-lg overflow-hidden">
           <div
-            v-for="(cell, index) in flatBoard"
-            :key="index"
-            class="relative flex items-center justify-center select-none"
-            :style="{ width: `${cellPx}px`, height: `${cellPx}px` }"
-            :class="cellClass(cell)"
+            :style="{ display: 'grid', gridTemplateColumns: `repeat(${cols}, ${cellPx}px)` }"
           >
-            <div v-if="cell === CELL.BOOK" class="w-1.5 h-1.5 bg-yellow-300 rounded-full"></div>
-            <div v-else-if="cell === CELL.POWER" class="w-3 h-3 bg-cyan-300 rounded-full"></div>
+            <div
+              v-for="(cell, index) in flatBoard"
+              :key="index"
+              class="relative flex items-center justify-center select-none"
+              :style="{ width: `${cellPx}px`, height: `${cellPx}px` }"
+              :class="cellClass(cell)"
+            >
+              <div v-if="cell === CELL.BOOK" class="w-1.5 h-1.5 bg-yellow-300 rounded-full"></div>
+              <div v-else-if="cell === CELL.POWER" class="w-3 h-3 bg-cyan-300 rounded-full"></div>
+            </div>
+          </div>
 
-            <div v-if="isStudent(index)" class="text-[18px]" title="Student">🧑‍🎓</div>
-            <div v-else-if="teacherAtIndex(index)" class="text-[18px]" title="Prefect">🧑‍🏫</div>
+          <!-- Overlays (smooth movement) -->
+          <div
+            class="absolute transition-transform duration-200 ease-linear flex items-center justify-center text-[18px]"
+            :style="{
+              width: `${cellPx}px`,
+              height: `${cellPx}px`,
+              transform: `translate(${student.x * cellPx}px, ${student.y * cellPx}px)`
+            }"
+            title="Student"
+          >
+            <span
+              class="inline-flex items-center justify-center rounded-full"
+              :class="hideTicksLeft > 0 ? 'ring-2 ring-cyan-300/80' : ''"
+            >
+              🧑‍🎓
+            </span>
+          </div>
+
+          <div
+            v-for="(t, i) in teachers"
+            :key="i"
+            class="absolute transition-transform duration-200 ease-linear flex items-center justify-center text-[18px]"
+            :style="{
+              width: `${cellPx}px`,
+              height: `${cellPx}px`,
+              transform: `translate(${t.x * cellPx}px, ${t.y * cellPx}px)`
+            }"
+            title="Prefect"
+          >
+            🧑‍🏫
           </div>
         </div>
       </div>
@@ -208,20 +238,6 @@ function parseLevel() {
   hideTicksLeft.value = 0;
   studentDir.value = { dx: 0, dy: 0 };
   nextStudentDir.value = { dx: 0, dy: 0 };
-}
-
-function idxToXY(index) {
-  return { x: index % cols, y: Math.floor(index / cols) };
-}
-
-function isStudent(index) {
-  const { x, y } = idxToXY(index);
-  return student.value.x === x && student.value.y === y;
-}
-
-function teacherAtIndex(index) {
-  const { x, y } = idxToXY(index);
-  return teachers.value.some((t) => t.x === x && t.y === y);
 }
 
 function cellClass(cell) {

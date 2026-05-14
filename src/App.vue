@@ -12,7 +12,10 @@
         </div>
 
         <div class="text-right font-mono">
-          <div class="text-lg sm:text-xl">Score: {{ score }}</div>
+          <div class="text-lg sm:text-xl">
+            Score: {{ score }}
+            <span class="text-sm text-slate-400 ml-2">Term: {{ currentTerm }}</span>
+          </div>
           <div class="text-xs sm:text-sm text-slate-300">
             Books left: {{ booksLeft }}
             <span v-if="hideTicksLeft > 0" class="ml-2 text-cyan-300">
@@ -70,7 +73,8 @@
             }"
             title="Prefect"
           >
-            🧑‍🏫
+            <span v-if="hideTicksLeft > 0" class="animate-pulse opacity-80" title="Vulnerable!">😰</span>
+            <span v-else>🧑‍🏫</span>
           </div>
         </div>
       </div>
@@ -133,8 +137,16 @@
         </div>
 
         <button
+          v-if="gameWon"
+          class="ml-auto px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold"
+          @click="nextTerm"
+        >
+          Next Term ➡️
+        </button>
+        <button
+          v-else
           class="ml-auto px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-100 font-semibold"
-          @click="resetGame"
+          @click="fullRestart"
         >
           Restart
         </button>
@@ -184,6 +196,7 @@ const cols = level[0].length;
 
 const board = ref([]);
 const score = ref(0);
+const currentTerm = ref(1);
 const gameOver = ref(false);
 const gameWon = ref(false);
 
@@ -232,7 +245,6 @@ function parseLevel() {
   student.value = start;
   teachers.value = nextTeachers;
   teacherSpawns.value = nextSpawns;
-  score.value = 0;
   gameOver.value = false;
   gameWon.value = false;
   hideTicksLeft.value = 0;
@@ -358,6 +370,14 @@ function moveTeachers() {
 
     if (options.length === 0) continue;
 
+    // 20% chance to move randomly to break out of stuck corners / U-shapes
+    if (Math.random() < 0.2) {
+      const randomPick = options[Math.floor(Math.random() * options.length)];
+      t.x = randomPick.x;
+      t.y = randomPick.y;
+      continue;
+    }
+
     const target = student.value;
     const hiding = hideTicksLeft.value > 0;
 
@@ -388,9 +408,11 @@ function startLoops() {
   timerLoopId = window.setInterval(() => {
     if (hideTicksLeft.value > 0) hideTicksLeft.value -= 1;
   }, 100);
+
+  const teacherSpeed = Math.max(100, 260 - (currentTerm.value - 1) * 20);
   teacherLoopId = window.setInterval(() => {
     moveTeachers();
-  }, 260);
+  }, teacherSpeed);
   studentLoopId = window.setInterval(() => {
     moveStudent();
   }, 200);
@@ -410,9 +432,22 @@ function resetGame() {
   startLoops();
 }
 
+function nextTerm() {
+  currentTerm.value += 1;
+  parseLevel();
+  startLoops();
+}
+
+function fullRestart() {
+  currentTerm.value = 1;
+  score.value = 0;
+  parseLevel();
+  startLoops();
+}
+
 onMounted(() => {
   window.addEventListener("keydown", handleKeydown, { passive: false });
-  resetGame();
+  fullRestart();
 });
 
 onUnmounted(() => {

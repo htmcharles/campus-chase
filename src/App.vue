@@ -14,10 +14,12 @@
         <div class="text-right font-mono">
           <div class="text-lg sm:text-xl">
             Score: {{ score }}
-            <span class="text-sm text-slate-400 ml-2">Term: {{ currentTerm }}</span>
+            <span class="text-sm text-slate-400 ml-2">Level: {{ currentLevel }} · Term: {{ currentTerm }}</span>
           </div>
           <div class="text-xs sm:text-sm text-slate-300">
             Books left: {{ booksLeft }}
+            <span class="ml-2 text-slate-400">Time: {{ formattedTime }}</span>
+            <span v-if="bestTimeMs !== null" class="ml-2 text-slate-400">Best: {{ formatMs(bestTimeMs) }}</span>
             <span v-if="hideTicksLeft > 0" class="ml-2 text-cyan-300">
               Hide: {{ hideSecondsLeft }}s
             </span>
@@ -128,7 +130,14 @@
           v-else-if="gameWon"
           class="px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-400/30 text-emerald-200"
         >
-          You won: you collected all the books!
+          <span v-if="isFinalStage">
+            You won: you finished {{ currentLevel }} Term {{ currentTerm }}!
+            <span class="ml-2 text-emerald-100">Total: {{ formattedTime }}</span>
+            <span v-if="bestTimeMs !== null" class="ml-2 text-emerald-100">Record: {{ formatMs(bestTimeMs) }}</span>
+          </span>
+          <span v-else>
+            Term cleared: collect all books to advance.
+          </span>
         </div>
         <div class="text-slate-300 text-sm">
           Controls: Arrow keys. Free period (cyan) gives you hide power.
@@ -171,6 +180,8 @@ const cellPx = 26;
 //  o = free period (hide power)
 //  S = student start
 //  T = prefect start
+// Tunnel notes:
+// - Row 7 has openings on both ends for wrap-around.
 const level = [
   "###############",
   "#S....#....o..#",
@@ -179,7 +190,7 @@ const level = [
   "###.#####.###.#",
   "#...#...#.....#",
   "#.#.#.#.#.###.#",
-  "#.#...#...#...#",
+  "..#...#...#....",
   "#.###.###.#.#.#",
   "#.....#.....#.#",
   "#.###.#.###.#.#",
@@ -193,13 +204,22 @@ const rows = level.length;
 const cols = level[0].length;
 
 const board = ref([]);
+const levels = ["L3", "L4", "L5"];
+const currentLevelIndex = ref(0);
+const currentLevel = computed(() => levels[currentLevelIndex.value] ?? "L?");
+
 const score = ref(0);
-const currentTerm = ref(1);
+const currentTerm = ref(1); // 1..3 within each level
 const gameOver = ref(false);
 const gameWon = ref(false);
 
 // Hide timer: 10 ticks per second
 const hideTicksLeft = ref(0);
+
+const runStartMs = ref(0);
+const runEndMs = ref(0);
+const nowMs = ref(Date.now());
+const bestTimeMs = ref(null);
 
 const student = ref({ x: 1, y: 1 });
 const studentDir = ref({ dx: 0, dy: 0 });
@@ -215,6 +235,43 @@ let studentLoopId = null;
 const flatBoard = computed(() => board.value.flat());
 const booksLeft = computed(() => flatBoard.value.filter((c) => c === CELL.BOOK).length);
 const hideSecondsLeft = computed(() => Math.ceil(hideTicksLeft.value / 10));
+const isFinalStage = computed(
+  () => currentLevelIndex.value === levels.length - 1 && currentTerm.value === 3
+);
+
+function formatMs(ms) {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
+const totalTimeMs = computed(() => {
+  if (!runStartMs.value) return 0;
+  const end = runEndMs.value ? runEndMs.value : nowMs.value;
+  return Math.max(0, end - runStartMs.value);
+});
+
+const formattedTime = computed(() => formatMs(totalTimeMs.value));
+
+function loadBestTime() {
+  try {
+    const raw = window.localStorage.getItem("campusChaseBestMs");
+    if (!raw) return;
+    const n = Number(raw);
+    if (Number.isFinite(n) && n > 0) bestTimeMs.value = n;
+  } catch {
+    // ignore
+  }
+}
+
+function saveBestTime(ms) {
+  try {
+    window.localStorage.setItem("campusChaseBestMs", String(ms));
+  } catch {
+    // ignore
+  }
+}
 
 function parseLevel() {
   const nextBoard = [];
@@ -257,7 +314,18 @@ function cellClass(cell) {
   return "bg-slate-900/40 border border-slate-800/60";
 }
 
+function normalizePosition(x, y) {
+  if (x < 0) return { x: cols - 1, y };
+  if (x >= cols) return { x: 0, y };
+  return { x, y };
+}
+
 function isWall(x, y) {
+  if (y < 0 || y >= rows) return true;
+  if (x < 0 || x >= cols) {
+    const wrapped = normalizePosition(x, y);
+    return board.value[wrapped.y]?.[wrapped.x] === CELL.WALL;
+  }
   return board.value[y]?.[x] === CELL.WALL;
 }
 
@@ -276,6 +344,16 @@ function maybeEat() {
   if (booksLeft.value === 0 && !gameOver.value) {
     gameWon.value = true;
     stopLoops();
+
+    // Only finalize time/record after the last stage (L5 term 3)
+    if (isFinalStage.value && !runEndMs.value) {
+      runEndMs.value = Date.now();
+      const total = totalTimeMs.value;
+      if (bestTimeMs.value === null || total < bestTimeMs.value) {
+        bestTimeMs.value = total;
+        saveBestTime(total);
+      }
+    }
   }
 }
 
@@ -336,7 +414,8 @@ function moveStudent() {
   const ny = student.value.y + studentDir.value.dy;
   if (isWall(nx, ny)) return;
 
-  student.value = { x: nx, y: ny };
+  const npos = normalizePosition(nx, ny);
+  student.value = { x: npos.x, y: npos.y };
   maybeEat();
   checkCollision();
 }
@@ -365,7 +444,7 @@ function moveTeachers() {
 
   for (const t of teachers.value) {
     const options = dirs
-      .map((d) => ({ x: t.x + d.dx, y: t.y + d.dy }))
+      .map((d) => normalizePosition(t.x + d.dx, t.y + d.dy))
       .filter((p) => !isWall(p.x, p.y));
 
     if (options.length === 0) continue;
@@ -407,9 +486,11 @@ function startLoops() {
   stopLoops();
   timerLoopId = window.setInterval(() => {
     if (hideTicksLeft.value > 0) hideTicksLeft.value -= 1;
+    nowMs.value = Date.now();
   }, 100);
 
-  const teacherSpeed = Math.max(100, 260 - (currentTerm.value - 1) * 20);
+  const stage = currentLevelIndex.value * 3 + (currentTerm.value - 1); // 0..8
+  const teacherSpeed = Math.max(100, 260 - stage * 20);
   teacherLoopId = window.setInterval(() => {
     moveTeachers();
   }, teacherSpeed);
@@ -428,20 +509,39 @@ function stopLoops() {
 }
 
 function nextTerm() {
-  currentTerm.value += 1;
-  parseLevel();
-  startLoops();
+  // Win state => advance progression
+  if (currentTerm.value < 3) {
+    currentTerm.value += 1;
+    parseLevel();
+    startLoops();
+    return;
+  }
+
+  if (currentLevelIndex.value < levels.length - 1) {
+    currentLevelIndex.value += 1;
+    currentTerm.value = 1;
+    parseLevel();
+    startLoops();
+    return;
+  }
+
+  // Finished L5 term 3 => final win remains on screen
 }
 
 function fullRestart() {
+  currentLevelIndex.value = 0;
   currentTerm.value = 1;
   score.value = 0;
+  runStartMs.value = Date.now();
+  runEndMs.value = 0;
+  nowMs.value = runStartMs.value;
   parseLevel();
   startLoops();
 }
 
 onMounted(() => {
   window.addEventListener("keydown", handleKeydown, { passive: false });
+  loadBestTime();
   fullRestart();
 });
 

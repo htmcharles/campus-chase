@@ -44,7 +44,7 @@
 
           <!-- Overlays (smooth movement) -->
           <div
-            class="absolute transition-transform duration-200 ease-linear flex items-center justify-center text-[18px]"
+            class="absolute top-0 left-0 z-10 transition-transform duration-200 ease-linear flex items-center justify-center text-[18px]"
             :style="{
               width: `${cellPx}px`,
               height: `${cellPx}px`,
@@ -63,7 +63,7 @@
           <div
             v-for="(t, i) in teachers"
             :key="i"
-            class="absolute transition-transform duration-200 ease-linear flex items-center justify-center text-[18px]"
+            class="absolute top-0 left-0 z-10 transition-transform duration-200 ease-linear flex items-center justify-center text-[18px]"
             :style="{
               width: `${cellPx}px`,
               height: `${cellPx}px`,
@@ -450,4 +450,3 @@ onUnmounted(() => {
   stopLoops();
 });
 </script>
-

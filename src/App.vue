@@ -29,9 +29,7 @@
         class="mx-auto w-fit bg-slate-950/60 border border-slate-700 rounded-xl p-3 shadow-lg shadow-black/30"
       >
         <div class="relative rounded-lg overflow-hidden">
-          <div
-            :style="{ display: 'grid', gridTemplateColumns: `repeat(${cols}, ${cellPx}px)` }"
-          >
+          <div :style="{ display: 'grid', gridTemplateColumns: `repeat(${cols}, ${cellPx}px)` }">
             <div
               v-for="(cell, index) in flatBoard"
               :key="index"
@@ -206,6 +204,7 @@ const hideTicksLeft = ref(0);
 const student = ref({ x: 1, y: 1 });
 const studentDir = ref({ dx: 0, dy: 0 });
 const nextStudentDir = ref({ dx: 0, dy: 0 });
+
 const teachers = ref([]);
 const teacherSpawns = ref([]);
 
@@ -245,6 +244,7 @@ function parseLevel() {
   student.value = start;
   teachers.value = nextTeachers;
   teacherSpawns.value = nextSpawns;
+
   gameOver.value = false;
   gameWon.value = false;
   hideTicksLeft.value = 0;
@@ -427,11 +427,6 @@ function stopLoops() {
   studentLoopId = null;
 }
 
-function resetGame() {
-  parseLevel();
-  startLoops();
-}
-
 function nextTerm() {
   currentTerm.value += 1;
   parseLevel();
@@ -455,3 +450,4 @@ onUnmounted(() => {
   stopLoops();
 });
 </script>
+

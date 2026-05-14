@@ -23,7 +23,7 @@
       </div>
 
       <div
-        class="mx-auto w-fit bg-slate-950/60 border border-slate-700 rounded-xl p-3 shadow-lg shadow-black/30"
+          class="mx-auto w-fit bg-slate-950/60 border border-slate-700 rounded-xl p-3 shadow-lg shadow-black/30"
       >
         <div
           class="rounded-lg overflow-hidden"
@@ -42,6 +42,46 @@
             <div v-if="isStudent(index)" class="text-[18px]" title="Student">🧑‍🎓</div>
             <div v-else-if="teacherAtIndex(index)" class="text-[18px]" title="Prefect">🧑‍🏫</div>
           </div>
+        </div>
+      </div>
+
+      <!-- Mobile controls -->
+      <div class="grid grid-cols-3 gap-2 w-48 mx-auto mt-5 sm:hidden">
+        <div class="col-start-2">
+          <button
+            class="bg-slate-800/70 active:bg-slate-700 p-3 rounded-lg w-full text-2xl border border-slate-600"
+            @click="setNextDirFromCode('ArrowUp')"
+            aria-label="Move up"
+          >
+            ⬆️
+          </button>
+        </div>
+        <div class="col-start-1 row-start-2">
+          <button
+            class="bg-slate-800/70 active:bg-slate-700 p-3 rounded-lg w-full text-2xl border border-slate-600"
+            @click="setNextDirFromCode('ArrowLeft')"
+            aria-label="Move left"
+          >
+            ⬅️
+          </button>
+        </div>
+        <div class="col-start-3 row-start-2">
+          <button
+            class="bg-slate-800/70 active:bg-slate-700 p-3 rounded-lg w-full text-2xl border border-slate-600"
+            @click="setNextDirFromCode('ArrowRight')"
+            aria-label="Move right"
+          >
+            ➡️
+          </button>
+        </div>
+        <div class="col-start-2 row-start-3">
+          <button
+            class="bg-slate-800/70 active:bg-slate-700 p-3 rounded-lg w-full text-2xl border border-slate-600"
+            @click="setNextDirFromCode('ArrowDown')"
+            aria-label="Move down"
+          >
+            ⬇️
+          </button>
         </div>
       </div>
 
@@ -232,19 +272,21 @@ function checkCollision() {
   endGame();
 }
 
+function setNextDirFromCode(code) {
+  let dx = 0;
+  let dy = 0;
+  if (code === "ArrowUp") dy = -1;
+  if (code === "ArrowDown") dy = 1;
+  if (code === "ArrowLeft") dx = -1;
+  if (code === "ArrowRight") dx = 1;
+  nextStudentDir.value = { dx, dy };
+}
+
 function handleKeydown(e) {
   if (gameOver.value || gameWon.value) return;
   if (!["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.code)) return;
   e.preventDefault();
-
-  let dx = 0;
-  let dy = 0;
-  if (e.code === "ArrowUp") dy = -1;
-  if (e.code === "ArrowDown") dy = 1;
-  if (e.code === "ArrowLeft") dx = -1;
-  if (e.code === "ArrowRight") dx = 1;
-
-  nextStudentDir.value = { dx, dy };
+  setNextDirFromCode(e.code);
 }
 
 function moveStudent() {

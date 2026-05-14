@@ -121,11 +121,14 @@ const gameWon = ref(false);
 const hideTicksLeft = ref(0);
 
 const student = ref({ x: 1, y: 1 });
+const studentDir = ref({ dx: 0, dy: 0 });
+const nextStudentDir = ref({ dx: 0, dy: 0 });
 const teachers = ref([]);
 const teacherSpawns = ref([]);
 
 let teacherLoopId = null;
 let timerLoopId = null;
+let studentLoopId = null;
 
 const flatBoard = computed(() => board.value.flat());
 const booksLeft = computed(() => flatBoard.value.filter((c) => c === CELL.BOOK).length);
@@ -163,6 +166,8 @@ function parseLevel() {
   gameOver.value = false;
   gameWon.value = false;
   hideTicksLeft.value = 0;
+  studentDir.value = { dx: 0, dy: 0 };
+  nextStudentDir.value = { dx: 0, dy: 0 };
 }
 
 function idxToXY(index) {
@@ -239,8 +244,26 @@ function handleKeydown(e) {
   if (e.code === "ArrowLeft") dx = -1;
   if (e.code === "ArrowRight") dx = 1;
 
-  const nx = student.value.x + dx;
-  const ny = student.value.y + dy;
+  nextStudentDir.value = { dx, dy };
+}
+
+function moveStudent() {
+  if (gameOver.value || gameWon.value) return;
+
+  const buffered = nextStudentDir.value.dx !== 0 || nextStudentDir.value.dy !== 0;
+  if (buffered) {
+    const tx = student.value.x + nextStudentDir.value.dx;
+    const ty = student.value.y + nextStudentDir.value.dy;
+    if (!isWall(tx, ty)) {
+      studentDir.value = nextStudentDir.value;
+    }
+  }
+
+  const moving = studentDir.value.dx !== 0 || studentDir.value.dy !== 0;
+  if (!moving) return;
+
+  const nx = student.value.x + studentDir.value.dx;
+  const ny = student.value.y + studentDir.value.dy;
   if (isWall(nx, ny)) return;
 
   student.value = { x: nx, y: ny };
@@ -310,13 +333,18 @@ function startLoops() {
   teacherLoopId = window.setInterval(() => {
     moveTeachers();
   }, 260);
+  studentLoopId = window.setInterval(() => {
+    moveStudent();
+  }, 200);
 }
 
 function stopLoops() {
   if (teacherLoopId) window.clearInterval(teacherLoopId);
   if (timerLoopId) window.clearInterval(timerLoopId);
+  if (studentLoopId) window.clearInterval(studentLoopId);
   teacherLoopId = null;
   timerLoopId = null;
+  studentLoopId = null;
 }
 
 function resetGame() {
@@ -334,4 +362,3 @@ onUnmounted(() => {
   stopLoops();
 });
 </script>
-
